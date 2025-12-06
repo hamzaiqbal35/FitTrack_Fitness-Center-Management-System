@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile } = require('../controllers/userController');
+const { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile, getMyMembers } = require('../controllers/userController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
@@ -9,6 +9,8 @@ router.route('/')
 router.route('/trainers')
     .get(getTrainers)
     .post(protect, authorize('admin'), createTrainer);
+
+router.get('/my-members', protect, authorize('trainer'), getMyMembers);
 
 router.route('/profile').put(protect, updateUserProfile);
 

@@ -33,10 +33,10 @@ const recordPayment = async (req, res) => {
     const { paymentIntentId, amount, status } = req.body;
 
     const payment = await Payment.create({
-        user: req.user._id,
+        userId: req.user._id, // Fixed: match schema
         amount,
-        stripePaymentId: paymentIntentId,
-        status: status || 'succeeded',
+        stripePaymentIntentId: paymentIntentId, // Fixed: match schema
+        status: status || 'paid', // 'succeeded' or 'paid'
     });
 
     if (payment) {
@@ -46,4 +46,30 @@ const recordPayment = async (req, res) => {
     }
 };
 
-module.exports = { createPaymentIntent, recordPayment };
+// @desc    Get my payment history
+// @route   GET /api/payments/my-payments
+// @access  Private
+const getMyPayments = async (req, res) => {
+    try {
+        const payments = await Payment.find({ userId: req.user._id }).sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching payments' });
+    }
+};
+
+// @desc    Get all payments (Admin)
+// @route   GET /api/payments
+// @access  Private/Admin
+const getAllPayments = async (req, res) => {
+    try {
+        const payments = await Payment.find({})
+            .populate('userId', 'name email')
+            .sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching payments' });
+    }
+};
+
+module.exports = { createPaymentIntent, recordPayment, getMyPayments, getAllPayments };

@@ -135,4 +135,36 @@ const updateUserProfile = async (req, res) => {
 };
 
 
-module.exports = { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile };
+// @desc    Get members for a trainer (users who booked their classes)
+// @route   GET /api/users/my-members
+// @access  Private/Trainer
+const getMyMembers = async (req, res) => {
+    try {
+        const Booking = require('../models/Booking');
+        const Class = require('../models/Class');
+
+        // 1. Get all classes by this trainer
+        const classes = await Class.find({ trainerId: req.user._id }).select('_id');
+        const classIds = classes.map(c => c._id);
+
+        if (classIds.length === 0) {
+            return res.json([]);
+        }
+
+        // 2. Get all bookings for these classes
+        const bookings = await Booking.find({ classId: { $in: classIds } }).distinct('memberId');
+
+        // 3. Get user details for these members
+        const members = await User.find({ _id: { $in: bookings } }).select('name email profile');
+
+        // Optional: Attach active plan info? For now just return users.
+        // We could aggregate Subscription data too if needed.
+
+        res.json(members);
+    } catch (error) {
+        console.error("Error fetching my members:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile, getMyMembers };

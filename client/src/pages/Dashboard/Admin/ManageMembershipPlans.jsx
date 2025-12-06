@@ -34,7 +34,7 @@ const ManageMembershipPlans = () => {
         e.preventDefault();
         const planData = {
             ...formData,
-            price: Number(formData.price) * 100,
+            price: Number(formData.price),
             classesPerMonth: Number(formData.classesPerMonth),
             features: formData.features.split(',').map(f => f.trim()).filter(f => f)
         };

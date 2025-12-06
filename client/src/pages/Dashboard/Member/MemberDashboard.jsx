@@ -34,7 +34,8 @@ const MemberDashboard = () => {
 
             // Process Subscription
             // Assuming getMySubscriptions returns an array
-            const activeSub = subs.find(s => s.status === 'active' || s.status === 'trialing');
+            // Match logic with Subscription.jsx
+            const activeSub = subs.find(s => ['active', 'trialing', 'past_due'].includes(s.status?.toLowerCase()));
             setSubscription(activeSub);
 
             // Process Bookings
@@ -74,7 +75,7 @@ const MemberDashboard = () => {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-900">Welcome Back!</h1>
-                <Link to="/classes" className="btn-primary">
+                <Link to="/dashboard/classes" className="btn-primary">
                     Book a Class
                 </Link>
             </div>
@@ -112,7 +113,7 @@ const MemberDashboard = () => {
                 <div className="card">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Upcoming Schedule</h2>
-                        <Link to="/my-bookings" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                        <Link to="/dashboard/my-bookings" className="text-primary-600 hover:text-primary-700 text-sm font-medium">
                             View All
                         </Link>
                     </div>
@@ -131,7 +132,7 @@ const MemberDashboard = () => {
                                             {new Date(booking.classId.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {booking.classId.trainerId?.name}
                                         </p>
                                     </div>
-                                    <Link to={`/my-bookings`} className="text-sm border border-gray-300 px-3 py-1 rounded hover:bg-white transition-colors">
+                                    <Link to={`/dashboard/my-bookings`} className="text-sm border border-gray-300 px-3 py-1 rounded hover:bg-white transition-colors">
                                         Details
                                     </Link>
                                 </div>
@@ -140,7 +141,7 @@ const MemberDashboard = () => {
                     ) : (
                         <div className="text-center py-8 text-gray-500">
                             <p>No upcoming classes booked.</p>
-                            <Link to="/classes" className="text-primary-500 hover:text-primary-600 font-medium mt-2 inline-block">
+                            <Link to="/dashboard/classes" className="text-primary-500 hover:text-primary-600 font-medium mt-2 inline-block">
                                 Browse Schedule
                             </Link>
                         </div>

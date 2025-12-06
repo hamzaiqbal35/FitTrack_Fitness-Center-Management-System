@@ -70,8 +70,8 @@ const createSubscription = async (req, res) => {
             stripeCustomerId,
             stripeSubscriptionId: stripeSubscription.id,
             status: stripeSubscription.status,
-            currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+            currentPeriodStart: new Date((stripeSubscription.current_period_start || stripeSubscription.start_date || Date.now() / 1000) * 1000),
+            currentPeriodEnd: new Date((stripeSubscription.current_period_end || (Date.now() / 1000 + 30 * 24 * 60 * 60)) * 1000),
         });
 
         // Create notification
@@ -104,6 +104,17 @@ const createCheckoutSession = async (req, res) => {
         const plan = await Plan.findById(planId);
         if (!plan || !plan.isActive) {
             return res.status(404).json({ message: 'Plan not found or inactive' });
+        }
+
+        // Check if user already has an active subscription
+        const existingSub = await Subscription.findOne({
+            userId: req.user._id,
+            status: { $in: ['active', 'trialing'] },
+            currentPeriodEnd: { $gte: new Date() }
+        });
+
+        if (existingSub) {
+            return res.status(400).json({ message: 'You already have an active subscription.' });
         }
 
         // Get or create Stripe customer
@@ -143,8 +154,8 @@ const createCheckoutSession = async (req, res) => {
                 },
             ],
             mode: 'subscription',
-            success_url: `${clientUrl}/dashboard/member/subscription?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${clientUrl}/dashboard/member/subscription`,
+            success_url: `${clientUrl}/dashboard/subscription?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${clientUrl}/dashboard/subscription`,
             metadata: {
                 userId: req.user._id.toString(),
                 planId: plan._id.toString(),
@@ -198,41 +209,69 @@ const syncSubscription = async (req, res) => {
 
         if (subscription) {
             // Check if status needs update
-            if (subscription.status !== stripeSubscription.status) {
+            // Check if status or dates need update
+            if (subscription.status !== stripeSubscription.status ||
+                subscription.currentPeriodEnd.getTime() !== stripeSubscription.current_period_end * 1000) {
+
                 subscription.status = stripeSubscription.status;
+                subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
+                subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
                 await subscription.save();
             }
-            return res.json({ message: 'Subscription synced', subscription });
+        } else {
+            // If not found, create it (fallback for missing webhook)
+            const planId = session.metadata.planId;
+            console.log('Plan ID from metadata:', planId);
+
+            const plan = await Plan.findById(planId);
+
+            if (!plan) {
+                console.error('Plan not found for ID:', planId);
+                return res.status(404).json({ message: 'Plan not found' });
+            }
+
+            subscription = await Subscription.create({
+                userId: req.user._id,
+                planId: plan._id,
+                stripeCustomerId: session.customer,
+                stripeSubscriptionId: subscriptionId,
+                status: stripeSubscription.status,
+                currentPeriodStart: new Date((stripeSubscription.current_period_start || stripeSubscription.start_date || Date.now() / 1000) * 1000),
+                currentPeriodEnd: new Date((stripeSubscription.current_period_end || (Date.now() / 1000 + 30 * 24 * 60 * 60)) * 1000),
+            });
+            console.log('Created new subscription:', subscription._id);
         }
 
-        // If not found, create it (fallback for missing webhook)
-        const planId = session.metadata.planId;
-        console.log('Plan ID from metadata:', planId);
-
-        const plan = await Plan.findById(planId);
-
-        if (!plan) {
-            console.error('Plan not found for ID:', planId);
-            return res.status(404).json({ message: 'Plan not found' });
+        // Create Payment Record if it doesn't exist
+        const paymentIntentId = session.payment_intent;
+        if (paymentIntentId) {
+            const existingPayment = await Payment.findOne({ stripePaymentIntentId: paymentIntentId });
+            if (!existingPayment) {
+                await Payment.create({
+                    userId: req.user._id,
+                    amount: session.amount_total,
+                    stripePaymentIntentId: paymentIntentId,
+                    status: 'paid', // session.payment_status is 'paid'
+                    subscriptionId: subscription._id
+                });
+                console.log('Payment record created manually via sync');
+            }
+        } else if (session.mode === 'subscription' && session.invoice) {
+            // If payment_intent is null (common in sub mode), use invoice ID to find/create
+            // But usually latest_invoice has the payment_intent. 
+            // For simplicity, we trust session.amount_total
+            // We can check if we have a payment for this subscription recently?
+            // Best effort:
+            await Payment.create({
+                userId: req.user._id,
+                amount: session.amount_total,
+                stripePaymentIntentId: typeof session.invoice === 'string' ? session.invoice : session.id, // Fallback
+                status: 'paid',
+                subscriptionId: subscription._id
+            });
         }
 
-        subscription = await Subscription.create({
-            userId: req.user._id,
-            planId: plan._id,
-            stripeCustomerId: session.customer,
-            stripeSubscriptionId: subscriptionId,
-            status: stripeSubscription.status,
-            currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-        });
-
-        console.log('Created new subscription:', subscription._id);
-
-        // Also create a payment record if needed, though webhooks are better for this. 
-        // We'll skip manual payment record creation to avoid duplication with webhooks 
-        // if they do eventually arrive, or we could check existence.
-
-        res.status(201).json({ message: 'Subscription created via sync', subscription });
+        res.status(200).json({ message: 'Subscription synced', subscription });
 
     } catch (error) {
         console.error('Error syncing subscription:', error);

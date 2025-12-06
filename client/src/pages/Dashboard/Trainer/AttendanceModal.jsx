@@ -1,43 +1,91 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { attendanceService } from '../../../services/attendanceService';
 
 const AttendanceModal = ({ classId, onClose, classDetails }) => {
     const [attendees, setAttendees] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [view, setView] = useState('roster'); // 'roster' (bookings) or 'history' (attendance records)
+    const [view, setView] = useState('roster'); // 'roster' | 'scanner'
+    const [scanResult, setScanResult] = useState(null);
+    const scannerRef = useRef(null);
 
     useEffect(() => {
         loadData();
     }, [classId]);
 
+    // Handle Scanner Lifecycle
+    useEffect(() => {
+        if (view === 'scanner') {
+            // Give DOM time to render the #reader div
+            const timeoutId = setTimeout(() => {
+                // Check if scanner instance already exists to prevent duplicates
+                // Note: html5-qrcode might attach to DOM ID so we must be careful with StrictMode
+                // We rely on cleanup to clear it.
+                const element = document.getElementById("reader");
+                if (element && !scannerRef.current) {
+                    try {
+                        const scanner = new Html5QrcodeScanner(
+                            "reader", 
+                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                            /* verbose= */ false
+                        );
+                        scanner.render(handleScanSuccess, handleScanFailure);
+                        scannerRef.current = scanner;
+                    } catch (e) {
+                        console.error("Scanner init error", e);
+                    }
+                }
+            }, 100);
+            
+            return () => {
+                clearTimeout(timeoutId);
+                if (scannerRef.current) {
+                    try {
+                        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+                    } catch (e) { console.error("Clear error", e); }
+                    scannerRef.current = null;
+                }
+            };
+        } else {
+            // Cleanup if switching away from scanner
+            if (scannerRef.current) {
+                 try {
+                        scannerRef.current.clear().catch(err => console.error("Failed to clear scanner", err));
+                    } catch (e) { console.error("Clear error", e); }
+                scannerRef.current = null;
+            }
+        }
+    }, [view]);
+
     const loadData = async () => {
         setLoading(true);
         try {
-            // We need to fetch the roster (bookings for this class).
-            // Currently we don't have a direct "get class roster" endpoint in classService or bookingService explicitly exposed for this UI.
-            // But we can use `attendanceService.getClassAttendance` to see who *attended*.
-            // To see who *booked*, we might need an endpoint.
-            // Let's assume classDetails.attendees (which comes from getClasses) has the list of booked user IDs.
-            // But we need names. The getClasses endpoint usually populates attendees.
-
-            // If classDetails.attendees is populated with objects, we can use it.
-            // If not, we might need to fetch the class details again with population.
-
-            // For now, let's fetch attendance records to see who is already checked in.
             const attendanceData = await attendanceService.getClassAttendance(classId);
-            const checkedInIds = new Set(attendanceData.attendance.map(a => a.memberId._id || a.memberId));
+            
+            if (attendanceData.bookings) {
+                const checkedInMap = new Map();
+                attendanceData.attendance.forEach(a => {
+                    const mId = a.memberId._id || a.memberId;
+                    checkedInMap.set(mId, a.checkedInAt);
+                });
 
-            // Combine with booking list if available
-            // If classDetails.attendees is array of objects { _id, name ... }
-            if (classDetails && classDetails.attendees) {
-                const roster = classDetails.attendees.map(user => ({
-                    ...user,
-                    checkedIn: checkedInIds.has(user._id),
-                    checkInTime: attendanceData.attendance.find(a => (a.memberId._id || a.memberId) === user._id)?.checkedInAt
-                }));
+                const roster = attendanceData.bookings.map(booking => {
+                    const member = booking.memberId || { _id: 'unknown', name: 'Unknown User', email: 'N/A' };
+                    // Handle case where member might be null/deleted
+                    const memberId = member._id || 'unknown';
+                    
+                    return {
+                        _id: memberId,
+                        bookingId: booking._id, 
+                        name: member.name || 'Unknown',
+                        email: member.email || 'N/A',
+                        checkedIn: checkedInMap.has(memberId),
+                        checkInTime: checkedInMap.get(memberId)
+                    };
+                });
+                
                 setAttendees(roster);
             } else {
-                // Fallback if no detailed roster
                 setAttendees([]);
             }
         } catch (error) {
@@ -49,8 +97,7 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
 
     const handleCheckIn = async (memberId) => {
         try {
-            await attendanceService.manualCheckIn(memberId, classId);
-            // Update local state
+            await attendanceService.manualCheckIn(classId, memberId);
             setAttendees(prev => prev.map(a =>
                 a._id === memberId
                     ? { ...a, checkedIn: true, checkInTime: new Date().toISOString() }
@@ -62,11 +109,55 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
         }
     };
 
+    const handleScanSuccess = async (decodedText, decodedResult) => {
+        // Pause scanner to avoid multiple reads
+        if (scannerRef.current) {
+             try { scannerRef.current.pause(); } catch(e) {}
+        }
+
+        try {
+            const data = JSON.parse(decodedText);
+            const bookingId = data.b;
+            const token = data.t;
+
+            if (!bookingId || !token) throw new Error("Invalid QR Code format");
+
+            await attendanceService.checkInWithQR(bookingId, token);
+            setScanResult({ success: true, message: `Checked in successfully!` });
+            
+            // Refresh roster
+            await loadData();
+            
+            // Resume after 2 seconds
+            setTimeout(() => {
+                setScanResult(null);
+                if (scannerRef.current) {
+                     try { scannerRef.current.resume(); } catch(e) {}
+                }
+            }, 2000);
+
+        } catch (error) {
+            console.error("Scan failed", error);
+            setScanResult({ success: false, message: error.response?.data?.message || error.message || "Invalid QR Code" });
+            
+            setTimeout(() => {
+                setScanResult(null);
+                if (scannerRef.current) {
+                     try { scannerRef.current.resume(); } catch(e) {}
+                }
+            }, 3000);
+        }
+    };
+
+    const handleScanFailure = (error) => {
+        // console.warn(`Code scan error = ${error}`);
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-900">Class Roster</h3>
+                    <h3 className="text-xl font-bold text-gray-900">Class Attendance</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -74,7 +165,22 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
                     </button>
                 </div>
 
-                <div className="mb-4">
+                <div className="flex border-b border-gray-200 mb-4">
+                    <button 
+                        className={`py-2 px-4 ${view === 'roster' ? 'border-b-2 border-primary-600 text-primary-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                        onClick={() => setView('roster')}
+                    >
+                        Roster List
+                    </button>
+                    <button 
+                        className={`py-2 px-4 ${view === 'scanner' ? 'border-b-2 border-primary-600 text-primary-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+                        onClick={() => setView('scanner')}
+                    >
+                        Scan QR Code
+                    </button>
+                </div>
+
+                <div className="mb-2">
                     <p className="text-sm text-gray-500">
                         {classDetails.name} • {new Date(classDetails.startTime).toLocaleString()}
                     </p>
@@ -83,39 +189,55 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
                     </p>
                 </div>
 
-                <div className="divide-y divide-gray-100 overflow-y-auto flex-1">
-                    {loading ? (
-                        <p className="text-center py-4">Loading roster...</p>
-                    ) : attendees.length > 0 ? (
-                        attendees.map(member => (
-                            <div key={member._id} className="py-3 flex justify-between items-center">
-                                <div className="flex items-center">
-                                    <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
-                                        {member.name?.charAt(0) || '?'}
+                <div className="flex-1 overflow-y-auto min-h-[300px]">
+                    {view === 'roster' ? (
+                        <div className="divide-y divide-gray-100">
+                            {loading ? (
+                                <p className="text-center py-4">Loading roster...</p>
+                            ) : attendees.length > 0 ? (
+                                attendees.map(member => (
+                                    <div key={member.bookingId || member._id} className="py-3 flex justify-between items-center">
+                                        <div className="flex items-center">
+                                            <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
+                                                {member.name?.charAt(0) || '?'}
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                                                <p className="text-xs text-gray-500">{member.email}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            {member.checkedIn ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    Checked In {new Date(member.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleCheckIn(member._id)}
+                                                    className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                                                >
+                                                    Mark Present
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="ml-3">
-                                        <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                                        <p className="text-xs text-gray-500">{member.email}</p>
-                                    </div>
-                                </div>
-                                <div>
-                                    {member.checkedIn ? (
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Checked In {new Date(member.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                    ) : (
-                                        <button
-                                            onClick={() => handleCheckIn(member._id)}
-                                            className="text-sm text-primary-600 hover:text-primary-800 font-medium"
-                                        >
-                                            Mark Present
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))
+                                ))
+                            ) : (
+                                <p className="text-center py-6 text-gray-500">No members booked this class.</p>
+                            )}
+                        </div>
                     ) : (
-                        <p className="text-center py-6 text-gray-500">No members booked this class.</p>
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <div id="reader" className="w-full max-w-sm"></div>
+                            {scanResult && (
+                                <div className={`mt-4 p-3 rounded text-sm font-medium w-full text-center ${scanResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {scanResult.message}
+                                </div>
+                            )}
+                            <p className="text-xs text-gray-500 mt-4 text-center">
+                                Allow camera access to scan member QR codes.
+                            </p>
+                        </div>
                     )}
                 </div>
 

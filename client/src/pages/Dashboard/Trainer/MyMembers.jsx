@@ -8,30 +8,18 @@ const MyMembers = () => {
     useEffect(() => {
         const fetchMembers = async () => {
             try {
-                // Ideally we have a dedicated endpoint: POST /users/search or GET /users?trainerId=me
-                // For now, let's fetch all users and filter by trainer relation client-side if needed, 
-                // OR assume the backend returns relevant data.
-                // Let's use the generic admin endpoint restricted to trainers? No, admin endpoints are protected.
-                // We need a trainer-accessible endpoint.
-                // Assuming we can use GET /api/users if we are authorized? 
-                // Or maybe the trainer sees members enrolled in their classes?
-                // For MVP, let's just fetch all members if the API allows, or show a placeholder.
-
-                // Let's rely on a hypothetical endpoint for now or reuse adminService with limited scope?
-                // Better: Create a mock list or try to fetch from a public profile endpoint.
-
-                // Real implementation: We need a new endpoint `GET /api/trainers/me/members`.
-                // I will add a TODO note in the UI.
-
-                // Fetching all users using the existing endpoint might default to 403 for trainers.
-                // Let's try to hit /api/users anyway (it might be protected only for admins).
-
-                // Placeholder data for demonstration
-                setMembers([
-                    { _id: '1', name: 'Alice Johnson', email: 'alice@example.com', plan: 'Yoga Basic', progress: 'On Track' },
-                    { _id: '2', name: 'Bob Smith', email: 'bob@example.com', plan: 'Hilt Pro', progress: 'Needs Attention' },
-                ]);
-
+                const response = await api.get('/users/my-members');
+                // Transform data if needed, or mapped directly. 
+                // The backend returns { _id, name, email, profile }
+                // We add placeholder for plan/progress as backend doesn't aggregate it yet.
+                const realMembers = response.data.map(m => ({
+                    _id: m._id,
+                    name: m.name,
+                    email: m.email,
+                    plan: 'Standard', // Placeholder until subscription data is aggregated
+                    progress: 'Active' // Placeholder
+                }));
+                setMembers(realMembers);
             } catch (error) {
                 console.error("Failed to fetch members", error);
             } finally {

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { subscriptionService } from '../../../services/subscriptionService';
+import { paymentService } from '../../../services/paymentService';
 
 const Subscription = () => {
     const [subscription, setSubscription] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         // Check for session_id in URL (Stripe redirect)
@@ -20,8 +24,9 @@ const Subscription = () => {
             const sync = async () => {
                 try {
                     await subscriptionService.syncSubscription(sessionId);
-                    loadSubscription();
+                    // loadSubscription(); // No need to reload here if we redirect
                     alert("Payment successful! Your subscription is now active.");
+                    navigate('/dashboard'); // <--- Redirect to Dashboard
                 } catch (error) {
                     console.error("Failed to sync subscription", error);
                     alert("Payment requires verification. Please wait for confirmation.");
@@ -33,7 +38,7 @@ const Subscription = () => {
         } else {
             loadSubscription();
         }
-    }, []);
+    }, [navigate]);
 
     const loadSubscription = async () => {
         try {
@@ -61,10 +66,12 @@ const Subscription = () => {
     };
 
     const [availablePlans, setAvailablePlans] = useState([]);
+    const [payments, setPayments] = useState([]);
 
     useEffect(() => {
         loadSubscription();
         loadPlans();
+        loadPayments();
     }, []);
 
     const loadPlans = async () => {
@@ -73,6 +80,15 @@ const Subscription = () => {
             setAvailablePlans(data);
         } catch (error) {
             console.error("Failed to fetch plans", error);
+        }
+    };
+
+    const loadPayments = async () => {
+        try {
+            const data = await paymentService.getMyPayments();
+            setPayments(data);
+        } catch (error) {
+            console.error("Failed to load payments", error);
         }
     };
 
@@ -137,6 +153,46 @@ const Subscription = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Integration of Payment History */}
+                <div className="mt-12">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Payment History</h3>
+                    <div className="card overflow-hidden">
+                        {payments.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {payments.map(payment => (
+                                            <tr key={payment._id}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {new Date(payment.createdAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    Rs. {payment.amount / 100}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${payment.status === 'succeeded' || payment.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                        {payment.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className="p-4 text-gray-500 text-center">No payment history found.</p>
+                        )}
+                    </div>
                 </div>
             </div>
         );
