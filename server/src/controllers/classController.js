@@ -69,21 +69,21 @@ const getClassById = async (req, res) => {
  */
 const createClass = async (req, res) => {
     try {
-        const { name, description, startTime, endTime, duration, capacity, location } = req.body;
+        const { name, description, startTime, endTime, duration, capacity, location, isRecurring, recurrenceCount } = req.body;
 
         // Validation
         if (!name || !description || !startTime || !endTime || !duration || !capacity || !location) {
             return res.status(400).json({ message: 'Please provide all required fields' });
         }
 
-        const start = new Date(startTime);
-        const end = new Date(endTime);
+        const initialStart = new Date(startTime);
+        const initialEnd = new Date(endTime);
 
-        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        if (isNaN(initialStart.getTime()) || isNaN(initialEnd.getTime())) {
             return res.status(400).json({ message: 'Invalid start or end time format' });
         }
 
-        if (start >= end) {
+        if (initialStart >= initialEnd) {
             return res.status(400).json({ message: 'Start time must be before end time' });
         }
 
@@ -97,71 +97,73 @@ const createClass = async (req, res) => {
             return res.status(400).json({ message: 'Please assign a trainer to this class' });
         }
 
-        // Verify trainer exists and has trainer role
-        // We need to require User model at the top if not present, but it usually is. 
-        // NOTE: User model is not imported yet, adding import in separate block or check if I can use population check? 
-        // Safer to just check conflicting class for now, or assume ID is valid if coming from admin dropdown.
-        // But better to validate.
+        const classesToCreate = [];
+        const numberOfClasses = isRecurring ? (parseInt(recurrenceCount) || 1) : 1;
 
-        // Let's assume User model needs to be imported. I'll check imports first. 
-        // Actually, let's just use the ID for now and rely on constraints or add User check.
-        // I will add `const User = require('../models/User');` to the top of file in a separate edit if needed.
-        // For now, let's use the ID.
+        for (let i = 0; i < numberOfClasses; i++) {
+            const currentStart = new Date(initialStart);
+            currentStart.setDate(initialStart.getDate() + (i * 7)); // Weekly recurrence
 
-        // Check for conflicting classes for the ASSIGNED trainer, not the current user (admin)
-        const conflictingClass = await Class.findOne({
-            trainerId: trainerId,
-            status: 'scheduled',
-            $or: [
-                {
-                    startTime: { $lte: start },
-                    endTime: { $gt: start },
-                },
-                {
-                    startTime: { $lt: end },
-                    endTime: { $gte: end },
-                },
-                {
-                    startTime: { $gte: start },
-                    endTime: { $lte: end },
-                },
-            ],
-        });
+            const currentEnd = new Date(initialEnd);
+            currentEnd.setDate(initialEnd.getDate() + (i * 7));
 
-        if (conflictingClass) {
-            return res.status(400).json({
-                message: 'Trainer has a conflicting class at this time',
-                conflictingClass,
+            // Check for conflicting classes for this specific slot
+            const conflictingClass = await Class.findOne({
+                trainerId: trainerId,
+                status: 'scheduled',
+                $or: [
+                    {
+                        startTime: { $lte: currentStart },
+                        endTime: { $gt: currentStart },
+                    },
+                    {
+                        startTime: { $lt: currentEnd },
+                        endTime: { $gte: currentEnd },
+                    },
+                    {
+                        startTime: { $gte: currentStart },
+                        endTime: { $lte: currentEnd },
+                    },
+                ],
+            });
+
+            if (conflictingClass) {
+                // If one conflicts, we can either fail all or skip. Failing all is safer.
+                return res.status(400).json({
+                    message: `Conflict detected for occurrence #${i + 1} (${currentStart.toLocaleDateString()}). Trainer has another class.`,
+                    conflictingClass,
+                });
+            }
+
+            classesToCreate.push({
+                name,
+                description,
+                startTime: currentStart,
+                endTime: currentEnd,
+                duration,
+                capacity,
+                location,
+                trainerId: trainerId,
             });
         }
 
-        const newClass = await Class.create({
-            name,
-            description,
-            startTime: start,
-            endTime: end,
-            duration,
-            capacity,
-            location,
-            trainerId: trainerId,
-        });
+        const createdClasses = await Class.insertMany(classesToCreate);
 
-        // Create audit log
+        // Create audit log (summary)
         try {
             await AuditLog.create({
                 userId: req.user._id,
-                action: 'create_class',
+                action: 'create_class_batch',
                 resource: 'Class',
-                resourceId: newClass._id,
-                details: { name, startTime, capacity },
+                resourceId: createdClasses[0]._id, // Reference the first one
+                details: { name, count: createdClasses.length, recurrence: isRecurring },
                 ipAddress: req.ip,
             });
         } catch (auditError) {
             console.error("Failed to create audit log:", auditError);
-            // Non-blocking, continue
         }
 
-        res.status(201).json(newClass);
+        res.status(201).json(isRecurring ? createdClasses : createdClasses[0]);
     } catch (error) {
         console.error('Error creating class:', error);
         res.status(500).json({ message: 'Error creating class: ' + error.message });

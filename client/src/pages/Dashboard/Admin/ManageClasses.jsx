@@ -17,7 +17,11 @@ const ManageClasses = () => {
         duration: 60,
         capacity: 20,
         location: 'Main Gym Floor',
-        trainerId: '' // Add trainerId to form data
+        capacity: 20,
+        location: 'Main Gym Floor',
+        trainerId: '', // Add trainerId to form data
+        isRecurring: false,
+        recurrenceCount: 4
     });
     const [editingId, setEditingId] = useState(null);
     const [selectedClassForAttendance, setSelectedClassForAttendance] = useState(null);
@@ -70,7 +74,8 @@ const ManageClasses = () => {
             }
             setIsModalOpen(false);
             setEditingId(null);
-            setFormData({ name: '', description: '', startTime: '', duration: 60, capacity: 20, location: 'Main Gym Floor' });
+            setEditingId(null);
+            setFormData({ name: '', description: '', startTime: '', duration: 60, capacity: 20, location: 'Main Gym Floor', isRecurring: false, recurrenceCount: 4 });
             loadClasses();
         } catch (error) {
             console.error("Failed to save class", error);
@@ -100,7 +105,10 @@ const ManageClasses = () => {
             duration: cls.duration || 60, // Default to 60 if undefined
             capacity: cls.capacity,
             location: cls.location || 'Main Gym Floor',
-            trainerId: (cls.trainerId && (cls.trainerId._id || cls.trainerId)) || '' // Handle null/undefined trainer
+            location: cls.location || 'Main Gym Floor',
+            trainerId: (cls.trainerId && (cls.trainerId._id || cls.trainerId)) || '', // Handle null/undefined trainer
+            isRecurring: false, // Default to false for edits
+            recurrenceCount: 4
         });
         setIsModalOpen(true);
     };
@@ -119,7 +127,10 @@ const ManageClasses = () => {
                             duration: 60,
                             capacity: 20,
                             location: 'Main Gym Floor',
-                            trainerId: ''
+                            location: 'Main Gym Floor',
+                            trainerId: '',
+                            isRecurring: false,
+                            recurrenceCount: 4
                         });
                         setIsModalOpen(true);
                     }}
@@ -156,7 +167,7 @@ const ManageClasses = () => {
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
                         <h3 className="text-lg font-bold mb-4">{editingId ? 'Edit Class' : 'Create New Class'}</h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
@@ -237,6 +248,44 @@ const ManageClasses = () => {
                                     />
                                 </div>
                             </div>
+
+                            {!editingId && (
+                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="isRecurring"
+                                            checked={formData.isRecurring}
+                                            onChange={e => setFormData({ ...formData, isRecurring: e.target.checked })}
+                                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="isRecurring" className="text-sm font-medium text-gray-900 select-none">
+                                            Repeat Weekly
+                                        </label>
+                                    </div>
+
+                                    {formData.isRecurring && (
+                                        <div className="mt-3">
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                For how many weeks?
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    min="2"
+                                                    max="12"
+                                                    value={formData.recurrenceCount}
+                                                    onChange={e => setFormData({ ...formData, recurrenceCount: parseInt(e.target.value) })}
+                                                    className="input-field w-20 py-1"
+                                                />
+                                                <span className="text-xs text-gray-500">
+                                                    (Creates {formData.recurrenceCount} sessions)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div className="flex justify-end gap-3 mt-6">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button>
                                 <button type="submit" className="btn-primary">Save Class</button>
