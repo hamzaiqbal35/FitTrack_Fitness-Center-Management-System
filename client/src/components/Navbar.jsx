@@ -61,6 +61,7 @@ const Navbar = () => {
     const memberLinks = [
         { name: 'Dashboard', path: '/dashboard' },
         { name: 'Classes', path: '/dashboard/classes' },
+        { name: 'My Bookings', path: '/dashboard/my-bookings' },
         { name: 'My Plans', path: '/dashboard/my-plans' },
         { name: 'History', path: '/dashboard/my-attendance' },
         { name: 'Billing', path: '/dashboard/subscription' },
@@ -179,8 +180,8 @@ const Navbar = () => {
                             to={link.path}
                             onClick={() => setIsMobileMenuOpen(false)}
                             className={`block px-4 py-3 rounded-xl text-base font-medium transition-all ${location.pathname === link.path
-                                    ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100'
-                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
                         >
                             {link.name}

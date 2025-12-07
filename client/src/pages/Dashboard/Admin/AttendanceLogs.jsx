@@ -77,6 +77,14 @@ const AttendanceLogs = () => {
             legend: { position: 'top' },
             title: { display: true, text: 'Daily Attendance Trends' },
         },
+        scales: {
+            y: {
+                ticks: {
+                    precision: 0
+                },
+                beginAtZero: true
+            }
+        }
     };
 
     return (
