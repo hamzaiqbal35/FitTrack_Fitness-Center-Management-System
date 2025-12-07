@@ -489,11 +489,18 @@ const unbookCourse = async (req, res) => {
         // Let's cancel only future ones to be safe and keep history?
         // User request: "unbook the complete class (course)"
         // Typically this means future.
+        // Filter bookings:
+        // 1. Always include the specific class the user clicked on (classId), even if it just started.
+        // 2. Include all strictly future bookings for the group.
         const now = new Date();
-        bookingsToCancel = bookings.filter(b => b.classId && new Date(b.classId.startTime) > now);
+        bookingsToCancel = bookings.filter(b => {
+            if (!b.classId) return false;
+            // Matches target class OR is in the future
+            return b.classId._id.toString() === classId || new Date(b.classId.startTime) > now;
+        });
 
         if (bookingsToCancel.length === 0) {
-            return res.status(400).json({ message: 'No future bookings found for this course.' });
+            return res.status(400).json({ message: 'No active or future bookings found for this course.' });
         }
 
         let cancelledCount = 0;

@@ -44,7 +44,7 @@ const Navbar = () => {
         { name: 'Trainers', path: '/dashboard/trainers' },
         { name: 'Scheduling', path: '/dashboard/classes' },
         { name: 'Memberships', path: '/dashboard/admin/memberships' },
-        { name: 'Workout Plans', path: '/dashboard/plans' },
+        { name: 'Plans', path: '/dashboard/plans' },
         { name: 'Attendance', path: '/dashboard/admin/attendance' },
         { name: 'Payments', path: '/dashboard/admin/payments' },
         { name: 'Alerts', path: '/dashboard/admin/notifications' },

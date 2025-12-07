@@ -61,12 +61,20 @@ const getDietPlan = async (req, res) => {
         }
 
         // Check visibility permissions
-        if (plan.visibility === 'members_only' && req.user.role === 'member') {
+        // Check visibility permissions
+        if (plan.visibility === 'public' || req.user.role === 'admin' || (req.user.role === 'trainer' && plan.trainerId._id.toString() === req.user._id.toString())) {
             // Allow access
-        } else if (plan.visibility === 'subscribers_only') {
-            // TODO: Check if user has active subscription
-        } else if (plan.visibility !== 'public' && req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'Not authorized to view this plan' });
+        } else {
+            // It's members_only
+            const Subscription = require('../models/Subscription');
+            const activeSubscription = await Subscription.findOne({
+                userId: req.user._id,
+                status: { $in: ['active', 'trialing'] }
+            });
+
+            if (!activeSubscription) {
+                return res.status(403).json({ message: 'This plan is exclusive to Gym Members. Please subscribe to a membership to access.' });
+            }
         }
 
         res.json(plan);
@@ -83,7 +91,7 @@ const getDietPlan = async (req, res) => {
  */
 const uploadDietPlan = async (req, res) => {
     try {
-        const { title, description, visibility, tags } = req.body;
+        const { title, description, visibility, tags, dietType, calories } = req.body;
 
         if (!req.file) {
             return res.status(400).json({ message: 'Please upload a file' });
@@ -101,6 +109,8 @@ const uploadDietPlan = async (req, res) => {
             fileType: req.file.mimetype,
             visibility: visibility || 'members_only',
             tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+            dietType,
+            calories: calories ? Number(calories) : 0,
         });
 
         // Create audit log

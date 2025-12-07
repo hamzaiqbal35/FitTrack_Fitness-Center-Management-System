@@ -288,6 +288,10 @@ const cancelSubscription = async (req, res) => {
     try {
         const { subscriptionId } = req.body;
 
+        if (!subscriptionId) {
+            return res.status(400).json({ message: 'Subscription ID is required' });
+        }
+
         const subscription = await Subscription.findById(subscriptionId);
 
         if (!subscription) {
@@ -299,27 +303,64 @@ const cancelSubscription = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
+        // Check if Stripe Subscription ID exists
+        if (!subscription.stripeSubscriptionId) {
+            // If local subscription without Stripe ID, just cancel it locally
+             subscription.status = 'canceled';
+             subscription.cancelAtPeriodEnd = false; // Immediate cancel if no stripe
+             await subscription.save();
+             return res.json({ message: 'Subscription cancelled (Local)', subscription });
+        }
+
         // Cancel in Stripe
-        await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
-            cancel_at_period_end: true,
-        });
+        try {
+            await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+                cancel_at_period_end: true,
+            });
+             // Update subscription
+            subscription.cancelAtPeriodEnd = true;
+            await subscription.save();
 
-        // Update subscription
-        subscription.cancelAtPeriodEnd = true;
-        await subscription.save();
+            // Create notification
+            await Notification.create({
+                userId: req.user._id,
+                type: 'subscription_cancelled',
+                title: 'Subscription Cancelled',
+                message: `Your subscription will be cancelled at the end of the current billing period.`,
+            });
 
-        // Create notification
-        await Notification.create({
-            userId: req.user._id,
-            type: 'subscription_cancelled',
-            title: 'Subscription Cancelled',
-            message: `Your subscription will be cancelled at the end of the current billing period.`,
-        });
+            res.json({ message: 'Subscription will be cancelled at period end', subscription });
 
-        res.json({ message: 'Subscription will be cancelled at period end', subscription });
+        } catch (stripeError) {
+            console.error("Stripe Error:", stripeError);
+            
+            // Handle specific Stripe errors
+            if (stripeError.code === 'resource_missing' || (stripeError.raw && stripeError.raw.message && stripeError.raw.message.includes('No such subscription'))) {
+                 // Subscription doesn't exist in Stripe, mark as canceled locally
+                 subscription.status = 'canceled';
+                 subscription.cancelAtPeriodEnd = false; // It's gone
+                 await subscription.save();
+                 return res.json({ message: 'Subscription cancelled (Stripe resource missing)', subscription });
+            }
+
+            // Handle "Subscription is already canceled" (or similar invalid request)
+            if (stripeError.type === 'StripeInvalidRequestError' && stripeError.raw && stripeError.raw.message && stripeError.raw.message.includes('canceled')) {
+                // It's already canceled in Stripe. Update local.
+                subscription.status = 'canceled'; // Or just ensure cancelAtPeriodEnd is true if it was a schedule?
+                // If it's effectively canceled, status usually becomes 'canceled'
+                // Let's create a partial fetch to verify, or just trust the error implies it's done.
+                // Safest to mark as period end true or canceled based on intention.
+                // If user wanted to cancel, and it's already canceled, that's a success.
+                subscription.cancelAtPeriodEnd = true;
+                await subscription.save();
+                return res.json({ message: 'Subscription already cancelled', subscription });
+            }
+
+            return res.status(500).json({ message: 'Stripe error: ' + (stripeError.message || 'Unknown error') });
+        }
     } catch (error) {
         console.error('Error cancelling subscription:', error);
-        res.status(500).json({ message: 'Error cancelling subscription' });
+        res.status(500).json({ message: 'Error cancelling subscription: ' + error.message });
     }
 };
 

@@ -7,6 +7,8 @@ const ManagePlans = () => {
     const [activeTab, setActiveTab] = useState('workout'); // 'workout' or 'diet'
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const [uploading, setUploading] = useState(false);
+
     // Form State
     const [formData, setFormData] = useState({
         title: '',
@@ -16,7 +18,6 @@ const ManagePlans = () => {
         dietType: 'Balanced', // For diet
         calories: 2000, // For diet
         visibility: 'members_only',
-        price: 0,
         file: null
     });
 
@@ -43,12 +44,12 @@ const ManagePlans = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setUploading(true);
         try {
             const data = new FormData();
             data.append('title', formData.title);
             data.append('description', formData.description);
             data.append('visibility', formData.visibility);
-            data.append('price', formData.price);
 
             if (formData.file) {
                 data.append('file', formData.file);
@@ -68,13 +69,15 @@ const ManagePlans = () => {
             setFormData({
                 title: '', description: '', difficultyLevel: 'Intermediate',
                 goal: 'Weight Loss', dietType: 'Balanced', calories: 2000,
-                visibility: 'members_only', price: 0, file: null
+                visibility: 'members_only', file: null
             });
             loadPlans();
             alert('Plan uploaded successfully!');
         } catch (error) {
             console.error("Upload failed", error);
             alert(error.response?.data?.message || 'Failed to upload plan');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -95,7 +98,9 @@ const ManagePlans = () => {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Manage Plans</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                    {activeTab === 'workout' ? 'Workout Plans' : 'Diet Plans'} Management
+                </h2>
                 <button
                     onClick={() => setIsModalOpen(true)}
                     className="btn-primary"
@@ -134,6 +139,9 @@ const ManagePlans = () => {
                     {plans.map((plan) => (
                         <div key={plan._id} className="card hover:shadow-md transition-shadow">
                             <h3 className="font-bold text-lg text-gray-900">{plan.title}</h3>
+                            <p className="text-xs text-primary-600 font-medium mb-1">
+                                By {plan.trainerId?.name || 'Unknown Trainer'}
+                            </p>
                             <p className="text-sm text-gray-500 mt-1 line-clamp-2">{plan.description}</p>
 
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -213,22 +221,12 @@ const ManagePlans = () => {
                                         value={formData.visibility}
                                         onChange={e => setFormData({ ...formData, visibility: e.target.value })}
                                     >
-                                        <option value="public">Public</option>
-                                        <option value="members_only">Members Only</option>
-                                        <option value="subscribers_only">Subscribers Only</option>
+                                        <option value="public">Public (Everyone)</option>
+                                        <option value="members_only">Members Only (Gym Members)</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Price (PKR)</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        className="input-field mt-1"
-                                        value={formData.price}
-                                        onChange={e => setFormData({ ...formData, price: e.target.value })}
-                                    />
-                                </div>
+
+
 
                                 {activeTab === 'workout' ? (
                                     <>
@@ -296,8 +294,31 @@ const ManagePlans = () => {
                             </div>
 
                             <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-secondary">Cancel</button>
-                                <button type="submit" className="btn-primary">Upload Plan</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="btn-secondary"
+                                    disabled={uploading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn-primary flex items-center gap-2"
+                                    disabled={uploading}
+                                >
+                                    {uploading ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Uploading...
+                                        </>
+                                    ) : (
+                                        'Upload Plan'
+                                    )}
+                                </button>
                             </div>
                         </form>
                     </div>

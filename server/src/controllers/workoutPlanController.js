@@ -16,11 +16,20 @@ const getWorkoutPlans = async (req, res) => {
 
         // Filter by visibility
         if (req.user.role === 'member') {
-            query.$or = [
-                { visibility: 'public' },
-                { visibility: 'members_only' },
-                // TODO: Add subscribers_only check based on user's subscription
-            ];
+            const Subscription = require('../models/Subscription');
+
+            // Check for ANY active subscription (Gym Membership)
+            const activeSubscription = await Subscription.findOne({
+                userId: req.user._id,
+                status: { $in: ['active', 'trialing'] }
+            });
+
+            const allowedVisibilities = ['public'];
+            if (activeSubscription) {
+                allowedVisibilities.push('members_only');
+            }
+
+            query.visibility = { $in: allowedVisibilities };
         } else if (req.user.role === 'trainer') {
             // Trainers can see all plans or filter by their own
             if (trainerId) {
@@ -61,12 +70,19 @@ const getWorkoutPlan = async (req, res) => {
         }
 
         // Check visibility permissions
-        if (plan.visibility === 'members_only' && req.user.role === 'member') {
+        if (plan.visibility === 'public' || req.user.role === 'admin' || (req.user.role === 'trainer' && plan.trainerId._id.toString() === req.user._id.toString())) {
             // Allow access
-        } else if (plan.visibility === 'subscribers_only') {
-            // TODO: Check if user has active subscription
-        } else if (plan.visibility !== 'public' && req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'Not authorized to view this plan' });
+        } else {
+            // It's members_only
+            const Subscription = require('../models/Subscription');
+            const activeSubscription = await Subscription.findOne({
+                userId: req.user._id,
+                status: { $in: ['active', 'trialing'] }
+            });
+
+            if (!activeSubscription) {
+                return res.status(403).json({ message: 'This plan is exclusive to Gym Members. Please subscribe to a membership to access.' });
+            }
         }
 
         res.json(plan);

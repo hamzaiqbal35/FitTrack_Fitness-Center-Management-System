@@ -62,7 +62,7 @@ const Dashboard = () => {
                 <Route path="my-attendance" element={<MemberAttendance />} />
 
                 {/* Shared/conditional Routes */}
-                <Route path="plans" element={user?.role === 'trainer' ? <ManagePlans /> : <Plans />} />
+                <Route path="plans" element={user?.role === 'member' ? <Plans /> : <ManagePlans />} />
                 <Route path="subscription" element={<Subscription />} />
             </Route>
         </Routes>

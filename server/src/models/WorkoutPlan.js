@@ -28,7 +28,7 @@ const workoutPlanSchema = new mongoose.Schema({
     },
     visibility: {
         type: String,
-        enum: ['public', 'members_only', 'subscribers_only'],
+        enum: ['public', 'members_only'],
         default: 'members_only',
     },
     tags: {
