@@ -304,4 +304,117 @@ const getMyMembers = async (req, res) => {
     }
 };
 
-module.exports = { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile, getMyMembers, deleteMyAccount };
+// @desc    Get full member details for trainer
+// @route   GET /api/users/:memberId/details
+// @access  Private/Trainer
+const getMemberDetails = async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const Subscription = require('../models/Subscription');
+        const Attendance = require('../models/Attendance');
+        const Booking = require('../models/Booking');
+        const Plan = require('../models/Plan');
+
+        // 1. Basic Info
+        const member = await User.findById(memberId).select('-password');
+        if (!member) {
+            return res.status(404).json({ message: 'Member not found' });
+        }
+
+        // 2. Membership & Expiry
+        const activeSub = await Subscription.findOne({
+            userId: memberId,
+            status: { $in: ['active', 'trialing'] }
+        }).populate('planId');
+
+        // 3. Attendance Summary
+        const attendanceCount = await Attendance.countDocuments({ memberId });
+
+        // 4. Class History (Last 5 attended)
+        const classHistory = await Attendance.find({ memberId })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .populate('classId', 'name startTime');
+
+        // 5. Assigned Plans (Active Sub)
+        // Already fetched in activeSub
+
+        res.json({
+            member,
+            membership: activeSub ? {
+                planName: activeSub.planId.name,
+                status: activeSub.status,
+                expiry: activeSub.currentPeriodEnd
+            } : null,
+            attendanceStats: {
+                totalClasses: attendanceCount
+            },
+            classHistory,
+            // If you have workout/diet plans assigned to user, fetch them here too
+            // const assignedPlans = await WorkoutPlan.find({ memberId });
+        });
+
+    } catch (error) {
+        console.error("Error fetching member details:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// @desc    Add progress note
+// @route   POST /api/users/progress
+// @access  Private/Trainer
+const addMemberProgress = async (req, res) => {
+    try {
+        const { memberId, date, weight, bodyFat, notes } = req.body;
+        const MemberProgress = require('../models/MemberProgress');
+
+        const progress = await MemberProgress.create({
+            memberId,
+            trainerId: req.user._id,
+            date: date || new Date(),
+            weight,
+            bodyFat,
+            notes
+        });
+
+        res.status(201).json(progress);
+    } catch (error) {
+        console.error("Error adding progress:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// @desc    Get member progress history
+// @route   GET /api/users/:memberId/progress
+// @access  Private/Trainer/Member
+const getMemberProgress = async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const MemberProgress = require('../models/MemberProgress');
+
+        // Verify access: Trainer or the Member themselves
+        if (req.user.role !== 'trainer' && req.user._id.toString() !== memberId) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        const history = await MemberProgress.find({ memberId }).sort({ date: -1 });
+        res.json(history);
+    } catch (error) {
+        console.error("Error fetching progress:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+module.exports = {
+    getUsers,
+    getTrainers,
+    createTrainer,
+    deleteUser,
+    updateUser,
+    updateUserProfile,
+    getMyMembers,
+    deleteMyAccount,
+    getMemberDetails,
+    addMemberProgress,
+    getMemberProgress
+};
