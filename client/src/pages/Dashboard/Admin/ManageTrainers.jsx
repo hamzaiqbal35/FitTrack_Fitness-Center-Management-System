@@ -180,8 +180,12 @@ const ManageTrainers = () => {
 
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg ${trainer.isActive ? 'bg-gradient-to-br from-primary-500 to-indigo-600' : 'bg-gray-400'}`}>
-                                        {trainer.name.charAt(0).toUpperCase()}
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-lg overflow-hidden ${trainer.isActive ? 'bg-gradient-to-br from-primary-500 to-indigo-600' : 'bg-gray-400'}`}>
+                                        {trainer.avatar ? (
+                                            <img src={trainer.avatar} alt={trainer.name} className="h-full w-full object-cover" />
+                                        ) : (
+                                            trainer.name.charAt(0).toUpperCase()
+                                        )}
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-gray-900 text-lg group-hover:text-primary-600 transition-colors">{trainer.name}</h3>

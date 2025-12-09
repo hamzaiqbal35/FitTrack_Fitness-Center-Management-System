@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile, getMyMembers } = require('../controllers/userController');
+const { getUsers, getTrainers, createTrainer, deleteUser, updateUser, updateUserProfile, getMyMembers, deleteMyAccount } = require('../controllers/userController');
 const { protect, authorize } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 router.route('/')
     .get(protect, authorize('admin'), getUsers);
@@ -12,7 +13,9 @@ router.route('/trainers')
 
 router.get('/my-members', protect, authorize('trainer'), getMyMembers);
 
-router.route('/profile').put(protect, updateUserProfile);
+router.route('/profile')
+    .put(protect, upload.single('avatar'), updateUserProfile)
+    .delete(protect, deleteMyAccount);
 
 router.route('/:id')
     .put(protect, authorize('admin'), updateUser)

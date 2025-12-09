@@ -18,6 +18,11 @@ const loginUser = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            avatar: user.avatar,
+            phoneNumber: user.phoneNumber,
+            profile: user.profile,
+            specialization: user.specialization,
+            experience: user.experience,
             token: generateToken(user._id),
         });
     } else {
@@ -70,7 +75,11 @@ const getMe = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            profile: user.profile
+            avatar: user.avatar,
+            phoneNumber: user.phoneNumber,
+            profile: user.profile,
+            specialization: user.specialization,
+            experience: user.experience,
         });
     } else {
         res.status(404).json({ message: 'User not found' });

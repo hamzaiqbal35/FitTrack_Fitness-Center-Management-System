@@ -64,7 +64,16 @@ const ManageMembers = () => {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {members.map((member) => (
                                     <tr key={member._id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{member.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-3">
+                                            {member.avatar ? (
+                                                <img src={member.avatar} alt={member.name} className="h-8 w-8 rounded-full object-cover" />
+                                            ) : (
+                                                <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-xs">
+                                                    {member.name.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+                                            {member.name}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{member.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(member.createdAt).toLocaleDateString()}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">

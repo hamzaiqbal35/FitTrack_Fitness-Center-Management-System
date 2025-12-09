@@ -112,9 +112,13 @@ const Navbar = () => {
                                 <span className="text-sm font-semibold text-slate-700 group-hover:text-primary-700 transition-colors">
                                     {user?.name?.split(' ')[0]}
                                 </span>
-                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
-                                    {user?.name?.charAt(0).toUpperCase()}
-                                </div>
+                                {user?.avatar ? (
+                                    <img src={user.avatar} alt="Profile" className="h-8 w-8 rounded-full object-cover shadow-sm group-hover:scale-105 transition-transform" />
+                                ) : (
+                                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-sm group-hover:scale-105 transition-transform">
+                                        {user?.name?.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
                             </button>
 
                             {/* Dropdown Menu */}
@@ -188,9 +192,13 @@ const Navbar = () => {
 
                     <div className="pt-4 mt-4 border-t border-slate-100">
                         <div className="flex items-center px-4 py-3 bg-slate-50 rounded-xl mb-3">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                                {user?.name?.charAt(0).toUpperCase()}
-                            </div>
+                            {user?.avatar ? (
+                                <img src={user.avatar} alt="Profile" className="h-10 w-10 rounded-full object-cover shadow-sm" />
+                            ) : (
+                                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                                    {user?.name?.charAt(0).toUpperCase()}
+                                </div>
+                            )}
                             <div className="ml-3">
                                 <p className="text-sm font-bold text-slate-800">{user?.name}</p>
                                 <p className="text-xs text-slate-500 font-medium capitalize">{user?.role}</p>
