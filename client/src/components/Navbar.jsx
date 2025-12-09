@@ -172,7 +172,7 @@ const Navbar = () => {
 
             {/* Mobile Menu */}
             <div className={`
-                lg:hidden fixed inset-x-0 top-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/50 shadow-lg transform transition-all duration-300 ease-in-out
+                lg:hidden fixed inset-x-0 top-20 bg-white border-b border-slate-200 shadow-lg transform transition-all duration-300 ease-in-out
                 ${isMobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}
             `}>
                 <div className="max-h-[80vh] overflow-y-auto px-4 py-4 space-y-2">
