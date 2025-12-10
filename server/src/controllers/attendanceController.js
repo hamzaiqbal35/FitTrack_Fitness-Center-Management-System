@@ -221,12 +221,12 @@ const getClassAttendance = async (req, res) => {
 
         // Get all attendance records
         const attendance = await Attendance.find({ classId })
-            .populate('memberId', 'name email')
+            .populate('memberId', 'name email avatar')
             .populate('checkedInBy', 'name')
             .sort({ checkedInAt: 1 });
 
         // Get all bookings for this class
-        const bookings = await Booking.find({ classId }).populate('memberId', 'name email');
+        const bookings = await Booking.find({ classId }).populate('memberId', 'name email avatar');
 
         // Calculate stats
         const stats = {

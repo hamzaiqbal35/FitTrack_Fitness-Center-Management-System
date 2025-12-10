@@ -81,6 +81,7 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
                         bookingId: booking._id,
                         name: member.name || 'Unknown',
                         email: member.email || 'N/A',
+                        avatar: member.avatar,
                         checkedIn: checkedInMap.has(memberId) || booking.status === 'checked_in',
                         checkInTime: checkedInMap.get(memberId) || booking.updatedAt
                     };
@@ -225,8 +226,12 @@ const AttendanceModal = ({ classId, onClose, classDetails }) => {
                                 attendees.map(member => (
                                     <div key={member.bookingId || member._id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition-shadow">
                                         <div className="flex items-center">
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${member.checkedIn ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                                {member.name?.charAt(0) || '?'}
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner overflow-hidden ${member.checkedIn ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                                {member.avatar ? (
+                                                    <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    member.name?.charAt(0) || '?'
+                                                )}
                                             </div>
                                             <div className="ml-3">
                                                 <p className="text-sm font-bold text-gray-900">{member.name}</p>
