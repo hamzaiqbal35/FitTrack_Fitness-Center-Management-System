@@ -40,8 +40,7 @@ const attendanceTokenSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Unique index on token hash
-attendanceTokenSchema.index({ tokenHash: 1 }, { unique: true });
+// Unique index on token hash (handled by schema definition)
 
 // TTL index for automatic deletion of expired tokens
 attendanceTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

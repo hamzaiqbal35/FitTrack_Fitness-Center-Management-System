@@ -1,6 +1,10 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { uploadFile, deleteFile, extractPublicId } = require('../utils/cloudinaryService');
+const { checkAvailability } = require('../utils/availabilityUtils');
+const Class = require('../models/Class');
+const Notification = require('../models/Notification');
+const Booking = require('../models/Booking');
 
 
 // @desc    Get all users (Admin only)
@@ -15,8 +19,41 @@ const getUsers = async (req, res) => {
 // @route   GET /api/users/trainers
 // @access  Public
 const getTrainers = async (req, res) => {
-    const trainers = await User.find({ role: 'trainer' }).select('-password');
-    res.json(trainers);
+    try {
+        const { availableDay, availableTime } = req.query;
+        let query = { role: 'trainer' };
+
+        if (availableDay) {
+            query['availability.day'] = availableDay;
+        }
+
+        let trainers = await User.find(query).select('-password');
+
+        if (availableDay && availableTime) {
+            // Further filter by time if both provided
+            // Re-use checkAvailability logic manually or via loop
+            trainers = trainers.filter(t => {
+                const dayAvail = t.availability.find(a => a.day === availableDay);
+                if (!dayAvail || !dayAvail.isAvailable) return false;
+
+                const [checkHour, checkMin] = availableTime.split(':').map(Number);
+                const checkMins = checkHour * 60 + checkMin;
+
+                const [startHour, startMin] = dayAvail.startTime.split(':').map(Number);
+                const startMins = startHour * 60 + startMin;
+
+                const [endHour, endMin] = dayAvail.endTime.split(':').map(Number);
+                const endMins = endHour * 60 + endMin;
+
+                return checkMins >= startMins && checkMins <= endMins;
+            });
+        }
+
+        res.json(trainers);
+    } catch (error) {
+        console.error("Error fetching trainers:", error);
+        res.status(500).json({ message: "Server error" });
+    }
 };
 
 // @desc    Create a new trainer (Admin only)
@@ -176,6 +213,40 @@ const updateUserProfile = async (req, res) => {
             }
 
             user.profile = { ...user.profile, ...profileData };
+        }
+
+        if (req.body.availability) {
+            user.availability = req.body.availability;
+
+            // Check for conflicts with existing future classes and cancel them
+            const futureClasses = await Class.find({
+                trainerId: user._id,
+                status: 'scheduled',
+                startTime: { $gte: new Date() }
+            });
+
+            for (const cls of futureClasses) {
+                if (!checkAvailability(user.availability, cls.startTime, cls.endTime)) {
+                    // Conflict found: Cancel class
+                    cls.status = 'cancelled';
+                    await cls.save();
+
+                    // Notify attendees
+                    const bookings = await Booking.find({ classId: cls._id, status: 'booked' });
+                    for (const booking of bookings) {
+                        await Notification.create({
+                            userId: booking.memberId,
+                            type: 'class_cancelled',
+                            title: 'Class Cancelled',
+                            message: `The class "${cls.name}" on ${cls.startTime.toLocaleString()} has been cancelled due to a change in trainer availability.`,
+                        });
+                        booking.status = 'cancelled';
+                        booking.cancellationReason = 'Trainer availability change';
+                        await booking.save();
+                    }
+                    console.log(`Auto-cancelled class ${cls._id} due to availability change.`);
+                }
+            }
         }
 
         // Trainer specific updates

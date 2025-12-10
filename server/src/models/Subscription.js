@@ -50,7 +50,7 @@ const subscriptionSchema = new mongoose.Schema({
 
 // Indexes for efficient queries
 subscriptionSchema.index({ userId: 1, status: 1 });
-subscriptionSchema.index({ stripeSubscriptionId: 1 });
+
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
 

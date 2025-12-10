@@ -4,6 +4,8 @@ const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const { sendBookingConfirmation } = require('../utils/emailService');
+const { checkAvailability } = require('../utils/availabilityUtils');
+const User = require('../models/User');
 
 /**
  * @desc    Get all classes with filters
@@ -97,6 +99,19 @@ const createClass = async (req, res) => {
         if (!trainerId) {
             return res.status(400).json({ message: 'Please assign a trainer to this class' });
         }
+
+        // Check trainer availability
+        const trainer = await User.findById(trainerId);
+        if (!trainer) {
+            return res.status(404).json({ message: 'Trainer not found' });
+        }
+
+        if (!checkAvailability(trainer.availability, initialStart, initialEnd)) {
+            return res.status(400).json({
+                message: `Trainer is not available at this time. Please check ${trainer.name}'s availability logic.`
+            });
+        }
+
 
         const classesToCreate = [];
         const numberOfClasses = isRecurring ? (parseInt(recurrenceCount) || 1) : 1;
@@ -243,7 +258,16 @@ const updateClass = async (req, res) => {
                     conflictingClass,
                 });
             }
+
+            // Check availability for valid working hours
+            const trainer = await User.findById(targetTrainerId);
+            if (!checkAvailability(trainer.availability, newStartTime, newEndTime)) {
+                return res.status(400).json({
+                    message: `Trainer is not available at this time.`
+                });
+            }
         }
+
 
         if (name) classData.name = name;
         if (description) classData.description = description;

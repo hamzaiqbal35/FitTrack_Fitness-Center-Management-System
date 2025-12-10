@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { classService } from '../../../services/classService';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import AvailabilityModal from './AvailabilityModal';
 
 const TrainerDashboard = () => {
     const { user } = useAuth();
     const [upcomingClasses, setUpcomingClasses] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -40,13 +42,22 @@ const TrainerDashboard = () => {
                 </div>
                 <div className="card">
                     <h3 className="text-sm font-medium text-gray-500 uppercase">Quick Actions</h3>
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex gap-2 flex-wrap">
                         <Link to="/dashboard/plans" className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-blue-600 text-white text-sm font-semibold rounded-xl shadow-lg shadow-primary-500/30 hover:shadow-primary-500/40 hover:scale-[1.02] transition-all duration-300 transform">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
                             </svg>
                             Upload New Plan
                         </Link>
+                        <button
+                            onClick={() => setShowAvailabilityModal(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                            </svg>
+                            Set Availability
+                        </button>
                     </div>
                 </div>
             </div>
@@ -84,6 +95,14 @@ const TrainerDashboard = () => {
                     <p className="text-gray-500 text-center py-6">No upcoming classes scheduled.</p>
                 )}
             </div>
+
+            {showAvailabilityModal && (
+                <AvailabilityModal
+                    currentAvailability={user?.availability}
+                    onClose={() => setShowAvailabilityModal(false)}
+                    onSave={() => setShowAvailabilityModal(false)}
+                />
+            )}
         </div>
     );
 };

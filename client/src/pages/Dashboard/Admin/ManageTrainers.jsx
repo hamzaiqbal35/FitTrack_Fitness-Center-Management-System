@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../../services/adminService';
+import AvailabilityModal from '../../Dashboard/Trainer/AvailabilityModal';
 // Using inline SVG icons to avoid external dependency issues if react-icons is not installed
 // If the user has react-icons, we could switch, but SVGs are safer for immediate 'wow' without install steps.
 
@@ -11,6 +12,7 @@ const ManageTrainers = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [currentTrainerId, setCurrentTrainerId] = useState(null);
+    const [availabilityTrainer, setAvailabilityTrainer] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -226,6 +228,15 @@ const ManageTrainers = () => {
                                 </button>
                                 <div className="w-px h-6 bg-gray-200"></div>
                                 <button
+                                    onClick={() => setAvailabilityTrainer(trainer)}
+                                    className="flex-1 py-2 px-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors flex items-center justify-center gap-1"
+                                    title="View Availability"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Schedule
+                                </button>
+                                <div className="w-px h-6 bg-gray-200"></div>
+                                <button
                                     onClick={() => handleToggleStatus(trainer)}
                                     className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${trainer.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}
                                 >
@@ -253,83 +264,96 @@ const ManageTrainers = () => {
                         </div>
                     ))}
                 </div>
-            )}
+            )
+            }
 
             {/* Modal - Modernized */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                    <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        {/* Background overlay */}
-                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-filter backdrop-blur-sm" aria-hidden="true" onClick={() => setIsModalOpen(false)}></div>
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                        <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                            {/* Background overlay */}
+                            <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-filter backdrop-blur-sm" aria-hidden="true" onClick={() => setIsModalOpen(false)}></div>
 
-                        {/* Modal panel */}
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                        <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-gray-100">
-                            <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                                <h3 className="text-xl font-bold text-gray-900" id="modal-title">
-                                    {isEditing ? 'Edit Trainer Profile' : 'Add New Trainer'}
-                                </h3>
-                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-500 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleCreateOrUpdateTrainer} className="px-8 py-6 space-y-5">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label htmlFor="name" className="label">Full Name</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                            </div>
-                                            <input type="text" id="name" name="name" required className="input-field pl-10" placeholder="e.g. John Doe" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label htmlFor="email" className="label">Email Address</label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
-                                            </div>
-                                            <input type="email" id="email" name="email" required className="input-field pl-10" placeholder="e.g. john@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label htmlFor="password" className="label">Password <span className="text-gray-400 font-normal text-xs">{isEditing ? '(Leave blank to stay)' : '(Required)'}</span></label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                            </div>
-                                            <input type="password" id="password" name="password" required={!isEditing} className="input-field pl-10" placeholder={isEditing ? "••••••••" : "Choose a secure password"} value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label htmlFor="specialization" className="label">Specialization</label>
-                                            <input type="text" id="specialization" name="specialization" className="input-field" placeholder="e.g. Yoga" value={formData.specialization} onChange={e => setFormData({ ...formData, specialization: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="experience" className="label">Experience (Yrs)</label>
-                                            <input type="number" id="experience" name="experience" className="input-field" placeholder="e.g. 5" value={formData.experience} onChange={e => setFormData({ ...formData, experience: e.target.value })} />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 flex items-center gap-3">
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 btn-secondary py-3">Cancel</button>
-                                    <button type="submit" className="flex-1 btn-primary py-3 shadow-lg shadow-primary-500/30">
-                                        {isEditing ? 'Save Changes' : 'Create Account'}
+                            {/* Modal panel */}
+                            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-gray-100">
+                                <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                                    <h3 className="text-xl font-bold text-gray-900" id="modal-title">
+                                        {isEditing ? 'Edit Trainer Profile' : 'Add New Trainer'}
+                                    </h3>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-500 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
                                 </div>
-                            </form>
+
+                                <form onSubmit={handleCreateOrUpdateTrainer} className="px-8 py-6 space-y-5">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label htmlFor="name" className="label">Full Name</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                                </div>
+                                                <input type="text" id="name" name="name" required className="input-field pl-10" placeholder="e.g. John Doe" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="email" className="label">Email Address</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
+                                                </div>
+                                                <input type="email" id="email" name="email" required className="input-field pl-10" placeholder="e.g. john@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="password" className="label">Password <span className="text-gray-400 font-normal text-xs">{isEditing ? '(Leave blank to stay)' : '(Required)'}</span></label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                                </div>
+                                                <input type="password" id="password" name="password" required={!isEditing} className="input-field pl-10" placeholder={isEditing ? "••••••••" : "Choose a secure password"} value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label htmlFor="specialization" className="label">Specialization</label>
+                                                <input type="text" id="specialization" name="specialization" className="input-field" placeholder="e.g. Yoga" value={formData.specialization} onChange={e => setFormData({ ...formData, specialization: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="experience" className="label">Experience (Yrs)</label>
+                                                <input type="number" id="experience" name="experience" className="input-field" placeholder="e.g. 5" value={formData.experience} onChange={e => setFormData({ ...formData, experience: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 flex items-center gap-3">
+                                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 btn-secondary py-3">Cancel</button>
+                                        <button type="submit" className="flex-1 btn-primary py-3 shadow-lg shadow-primary-500/30">
+                                            {isEditing ? 'Save Changes' : 'Create Account'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )
+            }
+
+            {/* Availability Modal */}
+            {availabilityTrainer && (
+                <AvailabilityModal
+                    currentAvailability={availabilityTrainer.availability}
+                    readOnly={true}
+                    onClose={() => setAvailabilityTrainer(null)}
+                />
             )}
-        </div>
+
+        </div >
     );
 };
 
