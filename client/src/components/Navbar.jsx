@@ -73,18 +73,11 @@ const Navbar = () => {
     return (
         <nav className="sticky top-0 z-50 w-full backdrop-blur-lg bg-white/80 border-b border-slate-200/60 supports-[backdrop-filter]:bg-white/60 transition-all duration-300">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-20">
+                <div className="flex justify-between h-24">
                     {/* Logo */}
                     <div className="flex items-center">
                         <Link to="/" className="flex items-center gap-2 group">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-primary-500/30 group-hover:scale-105 transition-transform duration-300">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                    <path fillRule="evenodd" d="M14.615 1.595a.75.75 0 01.359.852L12.982 9.75h7.268a.75.75 0 01.548 1.262l-10.5 11.25a.75.75 0 01-1.272-.71l1.992-7.302H3.75a.75.75 0 01-.548-1.262l10.5-11.25a.75.75 0 01.913-.143z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <span className="font-display font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 group-hover:from-primary-600 group-hover:to-blue-600 transition-all duration-300">
-                                FitTrack
-                            </span>
+                            <img src="/logo.png" alt="FitTrack Logo" className="h-32 w-auto object-contain -my-4 group-hover:scale-105 transition-transform duration-300" />
                         </Link>
 
                         {/* Desktop Nav */}

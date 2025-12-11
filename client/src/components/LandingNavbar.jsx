@@ -28,11 +28,10 @@ const LandingNavbar = () => {
     return (
         <nav className={`fixed w-full z-50 top-0 transition-all duration-300 ${scrolled || !isHomePage ? 'bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm' : 'bg-transparent'}`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div className="flex justify-between items-center h-20">
+                <div className="flex justify-between items-center h-24">
                     {/* Logo */}
                     <Link to="/" className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-xl">F</div>
-                        <span className="font-display font-bold text-2xl text-gray-900 tracking-tight">FitTrack</span>
+                        <img src="/logo.png" alt="FitTrack Logo" className="h-32 w-auto object-contain -my-4 hover:scale-105 transition-transform" />
                     </Link>
 
                     {/* Desktop Menu */}
